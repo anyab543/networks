@@ -1,47 +1,58 @@
 import socket
-import threading
+import sys #implement command lines and terminal commmands
 
-# Function to handle incoming connections
-def connection(client_socket, address):
-    print(f"Accepted connection from {address}")
+#making socket here
+def make_socket():
+    try:
+        global host
+        global port
+        global socket
+    
+        host = ''
+        port = 1200
+        socket = socket.socket() #socket made here
+
+    except socket.error as message:
+        print("Error with making socket" + str(message))
+
+#binding port and ip here
+def binding_socket():
+    try:
+        global host
+        global port
+        global socket
+
+        print("Binding port: " + str(port))
+        socket.bind((host,port)) #bining the ip and port num here in the socket
+        socket.listen(4) #listening for 4 connections max (get error if try and do more)
+
+    except socket.error as message:
+        print("Error with binding socket " +str(message) + '\n' + "Retry: ") #if there is an error message will print adn will try and bind again
+        binding_socket()
+
+#accepting connection(s)
+def accepting_connection():
+    connection, address = socket.accept() #ip address and port stored in address  (a list) variable
+    print("Connection found: " + "ip address is = " + str(address[0] + " port num is = " + str(address[1])))
+    send_message(connection)
+    connection.close() #closing connection
+
+#sending messages to client
+def send_message(connection):
     while True:
-        data = client_socket.recv(1024)
-        if not data:
-            break
-        if data.lower().strip() == 'bye':
-            break   
-        caps = data.upper()
-        client_socket.send(caps)
+        command = input()
+        if command == 'bye':
+            connection.close() #connection is closed
+            socket.close() #socket is close
+            sys.exit() #command prompt is closed
+        if len(str.encode(command)) > 0: #give length of string
+            connection.send(str.encode(command))
+            response = str(connection.recv(1024), "utf-8") #converting response from bytes to string 
+            print(response, end='') #goes onto new line after printing the response
 
-    client_socket.close()
-    print(f"Connection closed with {address}")
+def main():
+    make_socket()
+    binding_socket()
+    accepting_connection()
 
-# Function to start listening for incoming connections
-def start_server():
-    host = '172.27.107.120'
-    port = 1200
-
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(5)
-
-    print(f"Server listening on {host} : {port}")
-
-    while True:
-        client_socket, address = server_socket.accept()
-        client_handler = threading.Thread(target=connection, args=(client_socket, address))
-        client_handler.start()
-
-# Function to connect to other peers
-def connect_to_peer(peer_address, message):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(peer_address)
-    client_socket.send(message.encode())
-    response = client_socket.recv(1024)
-    print(f"Received response from {peer_address}: {response.decode()}")
-    client_socket.close()
-
-if __name__ == "__main__":
-    # Start server in a separate thread
-    server_thread = threading.Thread(target=start_server)
-    server_thread.start()
+main()
