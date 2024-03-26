@@ -1,25 +1,24 @@
 import socket
+import os #for operating system
+import subprocess  #for processes that are on a windows laptop
 
-# Function to connect to the server (peer) and send a message
-def connect_to_server(server_address):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Ipv4 and tcp connection
-    client_socket.connect(server_address)
+socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+host = "172.27.107.120" #ip address of server
+port = 12000
 
-    while True:
-        print("Send message or type 'bye' to end connection: ")
-        message = input()
+socket.connect((host, port)) #to establish connection
 
-        if message.lower() == 'bye':
-            break 
-
-        client_socket.send(message.encode())
-        response = client_socket.recv(1024)
-        print(f"Response from server: {response.decode()}")
-    client_socket.close()
-
-
-# Example usage
-if __name__ == "__main__":
-    server_address = ('172.27.107.120', 1200)  # Change depending on address
-    #message = "Hi from this client!"
-    connect_to_server(server_address)
+while True:
+    data = socket.recv(1024)
+    if data.decode() == 'do you want data?':
+        print('From server!! --> ', data.decode(), '\n')
+        reply = input('yes or no? --> ')
+        socket.send(reply.encode())
+    elif data.decode() == '0 attempts remaining':
+        null = ' '
+        socket.send(null.encode())
+    else:
+        #while data_two != 'better luck next time':
+        print('From server!! --> ', data.decode(), '\n')
+        reply = input('answer: ')
+        socket.send(reply.encode())
