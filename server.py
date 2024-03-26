@@ -16,11 +16,11 @@ def make_socket():
     try:
         global host
         global port
-        global socket
+        global server
     
-        host = ""
+        host = "172.20.10.12"
         port = 12000
-        socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #socket made here
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #socket made here
 
     except socket.error as message:
         print("Error with making socket" + str(message))
@@ -30,11 +30,11 @@ def binding_socket():
     try:
         global host
         global port
-        global socket
+        global server
 
         print("Binding port: " + str(port))
-        socket.bind((host,port)) #bining the ip and port num here in the socket
-        socket.listen(4) #listening for 4 connections max (get error if try and do more)
+        server.bind((host,port)) #bining the ip and port num here in the socket
+        server.listen(4) #listening for 4 connections max (get error if try and do more)
 
     except socket.error as message:
         print("Error with binding socket " +str(message) + '\n' + "Retry: ") #if there is an error message will print adn will try and bind again
@@ -50,8 +50,8 @@ def get_connections():
 
     while True:
         try:
-            connection, address = socket.accept()
-            socket.setblocking(1) #prevents time out (1 for true)
+            connection, address = server.accept()
+            server.setblocking(1) #prevents time out (1 for true)
 
             total_connections.append(connection) #adding connection to the list
             total_addresses.append(address) #adding address to the list
@@ -72,6 +72,10 @@ def start_terminal():
             if specific_client is not None: #if not NULL
                 messages(specific_client)
                 #data_send(specific_client)
+
+        elif 'all' in command: #send message to all clients
+            for connection in enumerate(total_connections):
+                messages(connection)
 
         else:
             print("don't know this command :/")
