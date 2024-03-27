@@ -2,27 +2,18 @@ import socket
 import os #for operating system
 import subprocess  #for processes that are on a windows laptop
 
-socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = "172.20.10.2" #ip address of server
 port = 12000
 
-socket.connect((host, port)) #to establish connection
+client.connect((host, port)) #to establish connection
 
 while True:
-    data = socket.recv(1024)
+    data = client.recv(1024)
     if data.decode() == 'bye':
-        socket.close()
+        client.close()
         break
-
-    elif data.decode() == 'do you want data?':
-        print('From server!! --> ', data.decode(), '\n')
-        reply = input('yes or no? --> ')
-        socket.send(reply.encode())
-    elif data.decode() == '0 attempts remaining':
-        null = ' '
-        socket.send(null.encode())
     else:
-        #while data_two != 'better luck next time':
         print('From server!! --> ', data.decode(), '\n')
         reply = input('answer: ')
         socket.send(reply.encode())
