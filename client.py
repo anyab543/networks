@@ -10,7 +10,11 @@ socket.connect((host, port)) #to establish connection
 
 while True:
     data = socket.recv(1024)
-    if data.decode() == 'do you want data?':
+    if data.decode() == 'bye':
+        socket.close()
+        break
+
+    elif data.decode() == 'do you want data?':
         print('From server!! --> ', data.decode(), '\n')
         reply = input('yes or no? --> ')
         socket.send(reply.encode())
