@@ -18,7 +18,7 @@ def make_socket():
         global port
         global server
     
-        host = "172.20.10.12"
+        host = "172.20.10.2"
         port = 12000
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #socket made here
 
@@ -74,7 +74,9 @@ def start_terminal():
                 #data_send(specific_client)
 
         elif 'all' in command: #send message to all clients
-            for connection in enumerate(total_connections):
+            for index, connection in enumerate(total_connections):
+                print("connected to this client: " + str(total_addresses[index][0]))
+                print(str(total_addresses[index][0]) + ">", end="")
                 messages(connection)
 
         else:
