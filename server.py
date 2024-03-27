@@ -84,23 +84,11 @@ def start_terminal():
 
 
 #prints out clients we are connected to
+list = ''
 def connection_list():
-    list = ''
+     list = '\n'.join([str(connection.getpeername()) for connection in total_connections])
+        print(f"list: {list}")
 
-    for i, connection in enumerate(total_connections): #i statrs at 0 and enumerate will increase by 1 each time (goes through total_connections list)
-        try:
-            connection.send(str.encode(' ')) #sending as test to see if we get a response (continues after except is yes)
-            connection.recv(20000) #big chunk size 
-        
-        except:
-            del total_connections[i]
-            del total_addresses[i]
-            continue #ignores the line below
-
-        #puts first element of the address list into the variable 'list'
-        list = str(i) + "   " + str(total_addresses[i][0]) + "   " + str(total_addresses[i][1]) + "\n"
-
-    print("clients connected list: " + "\n" + list)
 
 #choosing specific client and returns the value of the client (aka its number)
 def get_client(command):
