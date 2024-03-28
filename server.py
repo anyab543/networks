@@ -87,7 +87,7 @@ def start_terminal():
 list = ''
 def connection_list():
      list = '\n'.join([str(connection.getpeername()) for connection in total_connections])
-        print(f"list: {list}")
+    print(f"list: {list}")
 
 
 #choosing specific client and returns the value of the client (aka its number)

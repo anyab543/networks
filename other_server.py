@@ -9,6 +9,7 @@ NUM_OF_JOBS = [1, 2] #job one is to listen and accept and job 2 is to send messa
 queue = Queue()
 total_connections = []
 total_addresses = []
+solved = []
 
 #thread 1 here that can listen and accept connections
 #making socket here
@@ -18,7 +19,7 @@ def make_socket():
         global port
         global server
     
-        host = "172.27.107.120"
+        host = "172.20.10.2"
         port = 12000
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #socket made here
 
@@ -55,6 +56,7 @@ def get_connections():
 
             total_connections.append(connection) #adding connection to the list
             total_addresses.append(address) #adding address to the list
+            solved.append(False) #new connections have not passed the riddle
             print("Connection! : " + address[0])
             welcome_msg = 'you must solve this riddle in 3 attempts! "What question can you never answer yes to?" \n'
             connection.send(str.encode(welcome_msg))
@@ -66,10 +68,22 @@ def get_connections():
 #thread 2 here that can see, select and send messsages to clients
 def start_terminal():
  #send message to all clients
-            for index, connection in enumerate(total_connections):
+        for index, connection in enumerate(total_connections):
                 print("connected to this client: " + str(total_addresses[index][0]))
                 print(str(total_addresses[index][0]) + ">", end="")
                 messages(connection)
+        while True:
+            command = input()
+            if 'broadcast' in command:
+                message = command.replace('broadcast ', '')
+                for index, connection in enumerate(total_connections):
+                    if solved[index]:
+                        connection.send(str.encode(message))
+            
+            elif 'list' in command:
+                connection_list()
+
+
 
 
 
@@ -107,20 +121,24 @@ def messages(connection):
 
             if response.decode() == answer:
                 completed = 'congrats you solved the riddle!\n'
+                client_num = total_connections.index(connection)
+                solved[client_num] = True
                 connection.send(str.encode(completed))
                 break
 
             else:
-                lives = lives -1
-                attempts = str(lives) + ' attempts remaining\n'
-                connection.send(str.encode(attempts))
+                lives = lives - 1
 
                 if lives == 0:
-                    fail = 'better luck next time'
+                    fail = '0 attempts remaining, better luck next time'
                     connection.send(str.encode(fail))
                     client_num = total_connections.index(connection)
                     print('client ' + str(client_num) + ' failed to solve riddle, going back to terminal\n')
                     break
+                
+                attempts = str(lives) + ' attempts remaining\n'
+                connection.send(str.encode(attempts))
+
 
     except:
         print("error with sending message :/ ")

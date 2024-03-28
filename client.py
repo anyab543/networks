@@ -16,4 +16,4 @@ while True:
     else:
         print('From server!! --> ', data.decode(), '\n')
         reply = input('answer: ')
-        socket.send(reply.encode())
+        client.send(reply.encode())
