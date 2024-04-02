@@ -57,6 +57,8 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
                 with mutex:
                     yes_votes = yes_votes + 1
                 self.voting() #go to servive function
+            elif response.decode() == 'no':
+                self.voting()
             else:
                 self.end_conn() #conection closes otherwise
         except:
@@ -79,9 +81,9 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
             while all_votes != len(all_connections):
                 time.sleep(1) #thread goes to sleep until all votes have been done
 
-            percent = yes_votes/len(all_connections)
-            if percent >= 0.5:
-                msg = 'test'
+            half = len(all_connections) / 2
+            if yes_votes >= half:
+                msg = 'consensus!!'
                 self.client.send(str.encode(msg))
             else:
                 self.end_conn()
