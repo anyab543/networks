@@ -23,8 +23,6 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
         finally: #ensures connection will close when riddle function done (may need to remove this depending on service)
             self.client.close()
 
-                
-
 
     def riddle(self, answer):
         try:
@@ -50,7 +48,7 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
             self.client.send(str.encode(completed))
             response = self.client.recv(1024)
             if response.decode() == 'yes':
-                self.service() #got to servive function
+                self.service() #got to service function
             else:
                 self.end_conn() #conection closes otherwise
         except:
@@ -68,8 +66,21 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
             print("Error with fail message")
 
     def service(self):
-        #add service stuuf here
-        print(" blah blah blah")
+        voting = 'Do you want to participate in our addition service? yes/no'
+        self.client.send(str.encode(voting))
+        response = self.client.recv(1024)
+        if response.decode() == 'yes':
+            print("service!!!")
+            num_votes = num_votes + 1
+            addition = 'Enter number to be added'
+            self.client.send(str.encode(addition))
+            received_num = self.client.recv(1024).decode('utf-8')
+            num = int(received_num)
+            sum_clients += num
+            if num_votes >= (len(self.connections) / 2):
+                sum_message = 'The final sum from all clients is:' + str(sum_clients)
+                self.client.send(str.encode(sum_message))
+
 
     def end_conn(self):
         try:
@@ -90,8 +101,14 @@ def main():
     global all_connections #initialise list
     all_connections = []
 
+    global num_votes
+    num_votes = 0
+
+    global sum_clients
+    sum_clients = 0
+
     host = ""
-    port = 1113
+    port = 9999
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #ipv4 and tcp connection
     server.bind((host, port))

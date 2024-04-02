@@ -1,7 +1,7 @@
 import socket
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host = "172.27.107.120" #ip address of server
+host = "172.20.10.2" #ip address of server
 port = 1113
 
 client.connect((host, port)) #to establish connection
