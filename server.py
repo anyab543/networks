@@ -1,87 +1,110 @@
 import socket
 import threading
 
-# Global variables for the chat room and thread safety
 chat_room = []
+voting_room = {}
 chat_room_lock = threading.Lock()
 
-class handle_client(threading.Thread):
-    def __init__(self, client, address):
+def broadcast_message(message, exclude_socket=None):
+    with chat_room_lock:
+        for client in chat_room:
+            if client != exclude_socket:
+                client.sendall(message.encode())
+
+class ClientHandler(threading.Thread):
+    def __init__(self, client_socket, client_address):
         super().__init__()
-        self.client = client
-        self.address = address
-        self.is_in_chat_room = False
+        self.client_socket = client_socket
+        self.client_address = client_address
 
     def run(self):
-        self.send_riddle()
+        self.client_socket.sendall("Solve this riddle to enter the chat room: 'Which thing have to be broken before you use it?'".encode())
+        answer = self.client_socket.recv(1024).decode().strip().lower()
+        if answer == 'egg':
+            self.attempt_entry_to_chat()
+        else:
+            self.client_socket.sendall("Incorrect! Please try again later.".encode())
+            self.client_socket.close()
 
-    def send_riddle(self):
-        try:
-            welcome_msg = 'Solve this riddle: "What thing have to be broken before you use it?"\n'
-            self.client.send(welcome_msg.encode())
-            self.handle_riddle_answer()
-        except Exception as e:
-            print(f"Error handling riddle for {self.address}: {e}")
-        finally:
-            if not self.is_in_chat_room:
-                self.client.close()
-
-    def handle_riddle_answer(self):
-        correct_answer = "Egg"
-        while True:
-            response = self.client.recv(1024).decode().strip()
-            if response.lower() == correct_answer.lower():
-                self.client.send("Correct! Welcome to the chat room. Type '!exit' to leave.\n".encode())
-                self.enter_chat_room()
-                break
+    def attempt_entry_to_chat(self):
+        with chat_room_lock:
+            if len(chat_room) == 0:
+                self.enter_chat()
             else:
-                self.client.send("Incorrect. Try again.\n".encode())
+                self.client_socket.sendall("Waiting for other clients to vote for your entry...".encode())
+                voting_room[self.client_socket] = {'votes': 0, 'total': len(chat_room)}
 
-    def enter_chat_room(self):
-        self.is_in_chat_room = True
-        with chat_room_lock:
-            chat_room.append(self.client)
-        try:
-            while True:
-                msg = self.client.recv(1024).decode()
-                if msg == '!exit':
-                    raise Exception("Client left the chat room")
+                # Ask other clients to vote
+                broadcast_message(f"Client {self.client_address} is trying to enter the chat room. Type '!yes' to allow, '!no' to deny.")
+                while True:
+                    # Wait until a decision is made
+                    if self.check_votes():
+                        break
+
+    def enter_chat(self):
+        chat_room.append(self.client_socket)
+        self.client_socket.sendall("You are now in the chat room!".encode())
+        self.chat()
+
+    def check_votes(self):
+        votes_info = voting_room.get(self.client_socket)
+        if votes_info and votes_info['votes'] > 0:
+            majority = (votes_info['total'] // 2) + 1
+            if votes_info['votes'] >= majority:
+                del voting_room[self.client_socket]
+                self.enter_chat()
+                return True
+            elif votes_info['votes'] <= -majority:
+                self.client_socket.sendall("Entry to the chat room was denied by the current members.".encode())
+                self.client_socket.close()
+                return True
+        return False
+
+    def chat(self):
+        while True:
+            try:
+                message = self.client_socket.recv(1024).decode()
+                if message == '!exit':
+                    self.disconnect_client()
+                elif message.startswith('!vote '):
+                    self.count_vote(message)
                 else:
-                    self.broadcast_message(msg)
-        except:
-            with chat_room_lock:
-                chat_room.remove(self.client)
-            self.client.close()
+                    broadcast_message(f"{self.client_address}: {message}")
+            except ConnectionResetError:
+                self.disconnect_client()
 
-    def broadcast_message(self, message):
+    def count_vote(self, message):
+        _, vote, client_id = message.split()
         with chat_room_lock:
-            for client in chat_room:
-                if client != self.client:
-                    try:
-                        client.send(f"{self.address}: {message}\n".encode())
-                    except:
-                        client.close()
-                        chat_room.remove(client)
+            for client in voting_room:
+                if str(id(client)) == client_id:
+                    voting_room[client]['votes'] += 1 if vote == 'yes' else -1
+                    break
 
-def main():
-    host = '0.0.0.0'
-    port = 9999
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((host, port))
-    server.listen()
+    def disconnect_client(self):
+        self.client_socket.close()
+        with chat_room_lock:
+            if self.client_socket in chat_room:
+                chat_room.remove(self.client_socket)
+            if self.client_socket in voting_room:
+                del voting_room[self.client_socket]
+        print(f"Client {self.client_address} has disconnected.")
 
-    print("Server listening for connections...")
+if __name__ == "__main__":
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('localhost', 12345))
+    server_socket.listen()
+
+    print("Server is running and listening for connections...")
 
     try:
         while True:
-            client, address = server.accept()
-            print(f"Connection from: {address}")
-            client_handler = handle_client(client, address)
+            client_socket, client_address = server_socket.accept()
+            client_handler = ClientHandler(client_socket, client_address)
             client_handler.start()
     except KeyboardInterrupt:
-        print("Server shutting down.")
-    finally:
-        server.close()
-
-if __name__ == "__main__":
-    main()
+        print("\nServer is shutting down.")
+        with chat_room_lock:
+            for client in chat_room:
+                client.close()
+        server_socket.close()
