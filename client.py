@@ -1,25 +1,59 @@
 import socket
+import threading
 
-# Function to connect to the server (peer) and send a message
-def connect_to_server(server_address):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Ipv4 and tcp connection
-    client_socket.connect(server_address)
-
+def receive_messages():
     while True:
-        print("Send message or type 'bye' to end connection: ")
-        message = input()
+        try:
+            # Receive data from the server
+            data = client.recv(1024).decode()
+            if 'any key to exit programm' in data:
+                # Handle server's prompt for exit
+                print('\nServer> ', data)
+                input('Press any key to exit...')
+                client.close()
+                break
+            else:
+                print('\nServer> ', data)
+        except:
+            # Handle any exception by breaking the loop to end the thread
+            print('You have been disconnected from the server.')
+            client.close()
+            break
 
-        if message.lower() == 'bye':
-            break 
+def send_messages():
+    while True:
+        try:
+            # Allow the user to input messages
+            message = input('')
+            if message.lower() == 'exit':
+                # If the user types 'exit', close the connection
+                client.send('exit'.encode())
+                client.close()
+                break
+            else:
+                # Send the input message to the server
+                client.send(message.encode())
+        except:
+            # Handle any exception by breaking the loop to end the thread
+            print('Error sending message.')
+            client.close()
+            break
 
-        client_socket.send(message.encode())
-        response = client_socket.recv(1024)
-        print(f"Response from server: {response.decode()}")
-    client_socket.close()
+# Set up the client connection
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+host = "127.0.0.1" # IP address of the server
+port = 12000
 
+# Attempt to connect to the server
+try:
+    client.connect((host, port))
+except:
+    print("Connection to the server failed.")
+    exit()
 
-# Example usage
-if __name__ == "__main__":
-    server_address = ('172.27.107.120', 1200)  # Change depending on address
-    #message = "Hi from this client!"
-    connect_to_server(server_address)
+# Create a thread for receiving messages from the server
+thread_receiving = threading.Thread(target=receive_messages)
+thread_receiving.start()
+
+# Call the send_messages function in the main thread to allow user input
+send_messages()
