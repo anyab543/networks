@@ -1,47 +1,87 @@
 import socket
 import threading
 
-# Function to handle incoming connections
-def connection(client_socket, address):
-    print(f"Accepted connection from {address}")
-    while True:
-        data = client_socket.recv(1024)
-        if not data:
-            break
-        if data.lower().strip() == 'bye':
-            break   
-        caps = data.upper()
-        client_socket.send(caps)
+# Global variables for the chat room and thread safety
+chat_room = []
+chat_room_lock = threading.Lock()
 
-    client_socket.close()
-    print(f"Connection closed with {address}")
+class handle_client(threading.Thread):
+    def __init__(self, client, address):
+        super().__init__()
+        self.client = client
+        self.address = address
+        self.is_in_chat_room = False
 
-# Function to start listening for incoming connections
-def start_server():
-    host = '172.27.107.120'
-    port = 1200
+    def run(self):
+        self.send_riddle()
 
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(5)
+    def send_riddle(self):
+        try:
+            welcome_msg = 'Solve this riddle: "What thing have to be broken before you use it?"\n'
+            self.client.send(welcome_msg.encode())
+            self.handle_riddle_answer()
+        except Exception as e:
+            print(f"Error handling riddle for {self.address}: {e}")
+        finally:
+            if not self.is_in_chat_room:
+                self.client.close()
 
-    print(f"Server listening on {host} : {port}")
+    def handle_riddle_answer(self):
+        correct_answer = "Egg"
+        while True:
+            response = self.client.recv(1024).decode().strip()
+            if response.lower() == correct_answer.lower():
+                self.client.send("Correct! Welcome to the chat room. Type '!exit' to leave.\n".encode())
+                self.enter_chat_room()
+                break
+            else:
+                self.client.send("Incorrect. Try again.\n".encode())
 
-    while True:
-        client_socket, address = server_socket.accept()
-        client_handler = threading.Thread(target=connection, args=(client_socket, address))
-        client_handler.start()
+    def enter_chat_room(self):
+        self.is_in_chat_room = True
+        with chat_room_lock:
+            chat_room.append(self.client)
+        try:
+            while True:
+                msg = self.client.recv(1024).decode()
+                if msg == '!exit':
+                    raise Exception("Client left the chat room")
+                else:
+                    self.broadcast_message(msg)
+        except:
+            with chat_room_lock:
+                chat_room.remove(self.client)
+            self.client.close()
 
-# Function to connect to other peers
-def connect_to_peer(peer_address, message):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(peer_address)
-    client_socket.send(message.encode())
-    response = client_socket.recv(1024)
-    print(f"Received response from {peer_address}: {response.decode()}")
-    client_socket.close()
+    def broadcast_message(self, message):
+        with chat_room_lock:
+            for client in chat_room:
+                if client != self.client:
+                    try:
+                        client.send(f"{self.address}: {message}\n".encode())
+                    except:
+                        client.close()
+                        chat_room.remove(client)
+
+def main():
+    host = '0.0.0.0'
+    port = 9999
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((host, port))
+    server.listen()
+
+    print("Server listening for connections...")
+
+    try:
+        while True:
+            client, address = server.accept()
+            print(f"Connection from: {address}")
+            client_handler = handle_client(client, address)
+            client_handler.start()
+    except KeyboardInterrupt:
+        print("Server shutting down.")
+    finally:
+        server.close()
 
 if __name__ == "__main__":
-    # Start server in a separate thread
-    server_thread = threading.Thread(target=start_server)
-    server_thread.start()
+    main()

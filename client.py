@@ -1,25 +1,46 @@
 import socket
+import threading
+import sys
 
-# Function to connect to the server (peer) and send a message
-def connect_to_server(server_address):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Ipv4 and tcp connection
-    client_socket.connect(server_address)
-
+def listen_for_messages(sock):
     while True:
-        print("Send message or type 'bye' to end connection: ")
-        message = input()
+        try:
+            # Receive messages
+            message = sock.recv(1024).decode()
+            if message == '':
+                break
+            print("\n" + message)
+        except OSError:  # Possibly client has left the chat.
+            break
 
-        if message.lower() == 'bye':
-            break 
+def send_messages(sock):
+    while True:
+        message = input('')
+        if message == "!exit":
+            # Close the listening thread
+            sock.shutdown(socket.SHUT_RD)
+            sock.close()
+            break
+        try:
+            sock.sendall(message.encode())
+        except OSError:  # Possibly client has left the chat.
+            break
 
-        client_socket.send(message.encode())
-        response = client_socket.recv(1024)
-        print(f"Response from server: {response.decode()}")
-    client_socket.close()
+def client_program():
+    host = '127.0.0.1'  # Server's IP address
+    port = 9999  # Server's port number
 
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((host, port))
 
-# Example usage
-if __name__ == "__main__":
-    server_address = ('172.27.107.120', 1200)  # Change depending on address
-    #message = "Hi from this client!"
-    connect_to_server(server_address)
+    print("Connected to chat server")
+
+    # Start listening for messages from the server
+    receive_thread = threading.Thread(target=listen_for_messages, args=(client,))
+    receive_thread.start()
+
+    # Start sending messages to the server
+    send_messages(client)
+
+if __name__ == '__main__':
+    client_program()
