@@ -41,7 +41,7 @@ def send_messages():
 
 # Set up the client connection
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host = "127.0.0.1" # IP address of the server
+host = "192.168.1.4" # IP address of the server
 port = 12000
 
 # Attempt to connect to the server

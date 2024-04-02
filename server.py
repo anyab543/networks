@@ -2,11 +2,12 @@ import socket
 import threading
 
 class handle_client(threading.Thread):
-    def __init__(self, client, address, connections):
+    def __init__(self, client, address, connections, solved_connections):
         super().__init__()
         self.client = client
         self.address = address
         self.connections = connections
+        self.solved = solved_connections
         self.lives = 3
 
     def run(self):
@@ -28,6 +29,10 @@ class handle_client(threading.Thread):
                 response = self.client.recv(1024)
                 if response.decode().lower() == answer:
                     self.success()
+                    for i, client in enumerate(self.connections):
+                        if client == self.client:
+                            self.solved[i] = True
+
                     return
                 else:
                     self.lives -= 1
@@ -64,8 +69,8 @@ class handle_client(threading.Thread):
             print("Error with fail message")
 
     def broadcast(self, message):
-        for client in self.connections:
-            if client != self.client:
+        for i, client in enumerate(self.connections):
+            if client != self.client and self.solved[i]:
                 try:
                     client.send(message)
                 except:
@@ -104,6 +109,7 @@ def main():
     global mutex, all_connections
     mutex = threading.Lock()
     all_connections = []
+    solved_connections = []
 
     host = ""
     port = 12000
@@ -119,8 +125,9 @@ def main():
         print(f"Connection from: {address}")
         with mutex:
             all_connections.append(client)
+            solved_connections.append(False)
 
-        c_handler = handle_client(client, address, all_connections)
+        c_handler = handle_client(client, address, all_connections, solved_connections)
         c_handler.start()
 
 if __name__ == "__main__":
