@@ -43,14 +43,14 @@ class Pizza:
         print("Topping Options:", cls.topping_options)
 
 # Example usage:
-my_pizza = Pizza()
-my_pizza.set_base("Thin Crust")
-my_pizza.set_cheese("Mozzarella")
-my_pizza.set_sauce("Tomato")
-my_pizza.add_topping("Pepperoni")
-my_pizza.add_topping("Mushrooms")
+#my_pizza = Pizza()
+#my_pizza.set_base("Thin Crust")
+#my_pizza.set_cheese("Mozzarella")
+#my_pizza.set_sauce("Tomato")
+#my_pizza.add_topping("Pepperoni")
+#my_pizza.add_topping("Mushrooms")
 
-print(my_pizza.get_pizza_details())
+#print(my_pizza.get_pizza_details())
 
 # Printing available options
 Pizza.print_options()

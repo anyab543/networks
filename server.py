@@ -1,84 +1,82 @@
 import socket
 import threading
+import time
 
-# Global variables for managing connections and votes
-connections = []
-pepperoni_votes = {'yes': 0, 'no': 0}
-margarita_votes = {'yes': 0, 'no': 0}
-vote_lock = threading.Lock()
+# Initialising global variables
+mutex = threading.Lock()
+all_connections = []
+base_options = ["Neapolitan Crust", "New York-Style Crust", "Chicago Deep Dish Crust"]
 
-class HandleClient(threading.Thread):
+def collect_votes(option):
+    """Collects votes for a given option from all clients."""
+    global all_connections
+    yes_votes = 0
+    no_votes = 0
+
+    for client, _ in all_connections:
+        try:
+            client.send(f"Do you want {option}? (yes/no)\n".encode())
+            response = client.recv(1024).decode().strip().lower()
+            if response == "yes":
+                yes_votes += 1
+            else:
+                no_votes += 1
+        except Exception as e:
+            print(f"Error collecting vote: {e}")
+    
+    return yes_votes, no_votes
+
+class ClientThread(threading.Thread):
     def __init__(self, client, address):
-        super().__init__()
+        threading.Thread.__init__(self)
         self.client = client
         self.address = address
+        self.lives = 3
 
     def run(self):
-        self.send_riddle()
-        self.ask_pizza_preference()
-
-    def send_riddle(self):
-        riddle = 'Solve this riddle: "The more of this there is, the less you see. What is it?" Answer: darkness\n'
-        self.client.send(riddle.encode())
-        # Expecting the client to respond with the answer, but not validating here for brevity
-
-    def ask_pizza_preference(self):
-        # Ask about pepperoni pizza
-        pepperoni_question = "Do you guys want pepperoni pizza (yes/no)?"
-        self.ask_question(pepperoni_question, pepperoni_votes)
-
-        with vote_lock:
-            if sum(pepperoni_votes.values()) == len(connections):  # Ensure all have voted
-                if pepperoni_votes['yes'] > pepperoni_votes['no']:
-                    self.broadcast_message("Here is your Pepperoni pizza.")
-                    return
-
-        # If not enough 'yes' votes for pepperoni, ask about Margarita pizza
-        margarita_question = "Would you guys like Margarita pizza (yes/no)?"
-        self.ask_question(margarita_question, margarita_votes)
-
-        with vote_lock:
-            if sum(margarita_votes.values()) == len(connections):  # Ensure all have voted
-                if margarita_votes['yes'] > margarita_votes['no']:
-                    self.broadcast_message("Here is your Margarita pizza.")
+        try:
+            self.client.send("Solve this riddle: The more of this there is, the less you see. What is it?\n".encode())
+            while self.lives > 0:
+                answer = self.client.recv(1024).decode().strip().lower()
+                if answer == "darkness":
+                    self.vote_on_options()
+                    break
                 else:
-                    self.broadcast_message("Disconnecting all clients...")
-
-    def ask_question(self, question, votes_dict):
-        self.client.send(question.encode())
-        while True:  # Keep asking until a valid response is received
-            response = self.client.recv(1024).decode().strip().lower()
-            if response in votes_dict:  # Check if the response is 'yes' or 'no'
-                with vote_lock:
-                    votes_dict[response] += 1
-                break  # Exit the loop after receiving a valid response
+                    self.lives -= 1
+                    self.client.send(f"Incorrect. {self.lives} attempts left.\n".encode())
             else:
-                self.client.send(b"Please answer 'yes' or 'no': ")  # Prompt again for a valid response
+                self.client.send("Failed to solve the riddle. Disconnecting.\n".encode())
+        finally:
+            self.client.close()
 
-
-    def broadcast_message(self, message):
-        for client, _ in connections:
-            client.send(message.encode())
-
-def accept_connections(server):
-    while True:
-        client, address = server.accept()
-        print(f"Connection from {address}")
-        with vote_lock:
-            connections.append((client, address))
-        handler = HandleClient(client, address)
-        handler.start()
+    def vote_on_options(self):
+        for option in base_options:
+            yes_votes, no_votes = collect_votes(option)
+            if yes_votes > no_votes:
+                self.client.send(f"Majority chose {option}.\n".encode())
+                break
+            elif yes_votes == no_votes:
+                self.client.send(f"Tie. Choosing {option} by default.\n".encode())
+                break
+            # If majority says 'no', continue to the next option
+        self.client.send("Voting ended. Disconnecting.\n".encode())
 
 def main():
-    host = '0.0.0.0'
-    port = 1113  # The port number should match what is expected by the client scripts
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(("", 1113))
+    server_socket.listen(5)
+    print("Server listening...")
 
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((host, port))
-    server.listen()
-
-    print(f"Server listening on {host}:{port}")
-    accept_connections(server)
+    try:
+        while True:
+            client, address = server_socket.accept()
+            print(f"Connection from {address} has been established.")
+            with mutex:
+                all_connections.append((client, address))
+            client_thread = ClientThread(client, address)
+            client_thread.start()
+    finally:
+        server_socket.close()
 
 if __name__ == "__main__":
     main()
