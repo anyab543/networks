@@ -1,6 +1,21 @@
 import socket
 import threading
 import time
+import random
+
+riddles = ["The more of this there is, the less you see. What is it?",
+           "Which fish costs the most?",
+           "What goes up, but never comes down?",
+           "What must be broken before you can use it?",
+           "What is full of holes but still holds water?",
+           "I am easy to lift, but hard to throw. What am I?"]
+riddle_answers = ["darkness",
+                  "goldfish",
+                  "age",
+                  "egg",
+                  "sponge",
+                  "feather"]
+
 
 class handle_client(threading.Thread): #when called thread is made each time (aka thread made for each client)
     def __init__(self, client, address, connections):
@@ -15,10 +30,10 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
 
     def begin(self): #sends riddle to each client when they connect
         try:
-            welcome_msg = 'you must solve this riddle in 3 attempts! "The more of this there is, the less you see. What is it?" \n'
-            self.client.send(str.encode(welcome_msg))
+            random_index = random.randint(0, len(riddles) - 1)
+            self.client.send(f"Welcome! Solve this riddle: {riddles[random_index]}\n.".encode())
             print("Riddle sent\n")
-            answer = 'darkness'
+            answer = riddle_answers[random_index]
             self.riddle(answer) #passing answer parameter
         
         finally: #ensures connection will close when riddle function done (may need to remove this depending on service)
@@ -89,41 +104,14 @@ class handle_client(threading.Thread): #when called thread is made each time (ak
             if yes_votes >= half:
                 msg = 'order placed for cheese pizza'
                 self.client.send(str.encode(msg))
+                print("Cheese has been ordered!")
             elif pep_votes > half:
                 msg = 'order placed for pepperoni pizza'
                 self.client.send(str.encode(msg))
-            # elif yes_votes == half:
-            #     msg = 'split vote. Please vote again.'
-            #     self.client.send(str.encode(msg))
-            #     self.revote()
+                print("Cheese has been ordered!")
         except:
             print("Error with voting")
     
-    # def revote(self):
-    #     try:
-    #         global all_votes, yes_votes, pep_votes
-    #         all_votes = 0
-    #         yes_votes = 0
-    #         pep_votes = 0
-    #         completed = 'cheese or pepperoni?\n' #or service, tailor message to suit here (message must go here tho)
-    #         self.client.send(str.encode(completed))
-    #         response = self.client.recv(1024)
-    #         with mutex:
-    #             all_votes = all_votes + 1
-    #         if response.decode() == 'cheese':
-    #             with mutex:
-    #                 yes_votes = yes_votes + 1
-    #             self.voting() #go to servive function
-    #         elif response.decode() == 'pepperoni':
-    #             with mutex:
-    #                 pep_votes = pep_votes + 1
-    #             self.voting() #go to servive function
-    #         elif response.decode() == 'no':
-    #             self.voting()
-    #         else:
-    #             self.end_conn() #conection closes otherwise
-    #     except:
-    #         print("Error with revote message")
 
     def end_conn(self):
         try:
@@ -155,7 +143,7 @@ def main():
 
 
     host = ""
-    port = 9999
+    port = 1113
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #ipv4 and tcp connection
     server.bind((host, port))
