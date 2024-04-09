@@ -1,25 +1,24 @@
+#library needed
 import socket
 
-# Function to connect to the server (peer) and send a message
-def connect_to_server(server_address):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # Ipv4 and tcp connection
-    client_socket.connect(server_address)
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #tcp connection with ipv4
+host = "172.27.107.120" #ip address of server
+port = 9999 #port used for connection
 
-    while True:
-        print("Send message or type 'bye' to end connection: ")
-        message = input()
+#only works when serevr and client on same device
+#host_name = socket.gethostname() #getting the local host name
+#host = socket.gethostbyname(host_name) #getting the ip addresss  of local host
 
-        if message.lower() == 'bye':
-            break 
+c_socket = (host, port)
+client.connect(c_socket) #to establish connection
 
-        client_socket.send(message.encode())
-        response = client_socket.recv(1024)
-        print(f"Response from server: {response.decode()}")
-    client_socket.close()
-
-
-# Example usage
-if __name__ == "__main__":
-    server_address = ('172.27.107.120', 1200)  # Change depending on address
-    #message = "Hi from this client!"
-    connect_to_server(server_address)
+while True:
+    data = client.recv(1024) #receiving data
+    print('Server>  ', data.decode(), '\n') #print data that is decoded
+    if 'any key to exit programm' in data.decode(): #if 'any key to exit program' in any part of recieved message
+        client.close() #close connection
+    elif 'order placed for' in data.decode(): #close connection when an order has been placed
+        client.close()
+    else:
+        reply = input('Reply>  ') #user input reply
+        client.send(reply.encode()) #send the reply that is encoded to server
